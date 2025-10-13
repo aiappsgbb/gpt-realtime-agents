@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "vite",
         "kill": "fuser -k 5000/tcp",
-    "build": "npm exec tsc -- -b --noCheck && npm exec vite -- build",
+    "build": "npm exec vite -- build",
         "lint": "eslint .",
         "optimize": "vite optimize",
         "preview": "vite preview"
