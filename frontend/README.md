@@ -63,15 +63,7 @@ src/
 
 ### Backend configuration
 
-The frontend expects a Python backend that exposes the realtime voice/chat APIs. If the UI is not running on the same container (or host) as that backend, change the `backendBaseUrl` value in [`src/lib/constants.ts`](src/lib/constants.ts) to point to the appropriate address before starting the app.
-
-```ts
-export const CLIENT_CONFIG = {
-  backendBaseUrl: "http://<your-backend-host>:8080/api",
-  deployment: "gpt-realtime",
-  voice: "verse",
-};
-```
+The frontend expects a Python backend that exposes the realtime voice/chat APIs. Configure the base URL by setting `VITE_BACKEND_BASE_URL` in an `.env` file (for example, `.env.local`). When the variable is omitted, the app defaults to `http://localhost:8080/api`.
 
 ## Available Scripts
 

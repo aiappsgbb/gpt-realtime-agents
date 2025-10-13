@@ -29,6 +29,8 @@ param audioBackendAppExists bool = false
 var abbrs = loadJsonContent('shared/abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 var tags = { 'azd-env-name': environmentName, assignedTo: environmentName }
+var audioBackendName = !empty(audioBackendContainerAppName) ? audioBackendContainerAppName : '${abbrs.appContainerApps}audio-backend-${resourceToken}'
+var audioBackendUri = 'https://${audioBackendName}.${containerApps.outputs.defaultDomain}'
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -69,7 +71,7 @@ module audioBackend 'app/audio-backend.bicep' = {
   name: 'audio-backend'
   scope: resourceGroup
   params: {
-    name: !empty(audioBackendContainerAppName) ? audioBackendContainerAppName : '${abbrs.appContainerApps}audio-backend-${resourceToken}'
+    name: audioBackendName
     location: location
     tags: tags
     identityName: '${abbrs.managedIdentityUserAssignedIdentities}audio-backend-${resourceToken}'
@@ -79,18 +81,6 @@ module audioBackend 'app/audio-backend.bicep' = {
     corsAcaUrl: ''
     exists: audioBackendAppExists
     env: [
-      // {
-      //   name: 'AZURE_STORAGE_ACCOUNT'
-      //   value: webRTCUrl
-      // }
-      // {
-      //   name: 'AZURE_GPT_REALTIME_URL'
-      //   value: gptRealtimeUrl
-      // }
-      // {
-      //   name: 'AZURE_GPT_REALTIME_KEY'
-      //   value:  gptRealtimeKey
-      // }
       {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
         value: monitoring.outputs.applicationInsightsInstrumentationKey
@@ -98,6 +88,10 @@ module audioBackend 'app/audio-backend.bicep' = {
       {
         name: 'SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS_SENSITIVE'
         value: true
+      }
+      {
+        name: 'VITE_BACKEND_BASE_URL'
+        value: '${audioBackendUri}/api'
       }
     ]
   }
@@ -113,4 +107,5 @@ output AZURE_RESOURCE_GROUP string = resourceGroup.name
 output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerApps.outputs.environmentName
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerApps.outputs.registryLoginServer
 output AZURE_CONTAINER_REGISTRY_NAME string = containerApps.outputs.registryName
+output AZURE_AUDIO_BACKEND_URL string = audioBackendUri
 

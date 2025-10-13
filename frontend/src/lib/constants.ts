@@ -389,8 +389,11 @@ export const INDUSTRY_CARD_MAP = {
 // Default to telco for backward compatibility
 export const DEFAULT_SUGGESTION_CARDS = TELCO_SUGGESTION_CARDS;
 
+const runtimeConfig = typeof window !== 'undefined' ? window.__APP_CONFIG__ : undefined;
+const runtimeBackendBaseUrl = runtimeConfig?.backendBaseUrl;
+
 export const CLIENT_CONFIG = {
-  backendBaseUrl: "http://localhost:8080/api",
+  backendBaseUrl: runtimeBackendBaseUrl ?? import.meta.env.VITE_BACKEND_BASE_URL ?? "http://localhost:8080/api",
   deployment: "gpt-realtime",
   voice: "verse",
 };

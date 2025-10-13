@@ -23,6 +23,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 try:
@@ -67,7 +68,15 @@ DEFAULT_DEPLOYMENT = os.getenv("AZURE_GPT_REALTIME_DEPLOYMENT", "gpt-realtime")
 DEFAULT_VOICE = os.getenv("AZURE_GPT_REALTIME_VOICE", "verse")
 AZURE_API_KEY = os.getenv("AZURE_GPT_REALTIME_KEY")
 
+
+def _optional_env(name: str, default: str) -> str:
+    raw = os.getenv(name, default)
+    if not raw:
+        return default
+    return raw.strip().strip('"').strip("'")
+
 FRONTEND_DIST_DIR = Path(__file__).resolve().parent / "frontend_dist"
+FRONTEND_BACKEND_BASE_URL = _optional_env("VITE_BACKEND_BASE_URL", "http://localhost:8080/api")
 
 print("REALTIME_SESSION_URL", REALTIME_SESSION_URL)
 print("WEBRTC_URL", WEBRTC_URL)
@@ -1675,6 +1684,13 @@ async def execute_function(request: FunctionCallRequest) -> FunctionCallResponse
 @app.get("/healthz")
 async def healthcheck() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/runtime-config.js", response_class=PlainTextResponse)
+async def runtime_config() -> PlainTextResponse:
+    payload = json.dumps({"backendBaseUrl": FRONTEND_BACKEND_BASE_URL})
+    script = f"window.__APP_CONFIG__ = Object.freeze({payload});"
+    return PlainTextResponse(content=script, media_type="application/javascript")
 
 
 @app.on_event("shutdown")
