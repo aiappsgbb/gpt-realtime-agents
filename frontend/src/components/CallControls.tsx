@@ -1,13 +1,17 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SessionState } from '@/lib/types';
-import { Phone, PhoneX, Microphone, MicrophoneSlash } from '@phosphor-icons/react';
+import { Phone, PhoneX, Microphone, MicrophoneSlash, PhoneCall } from '@phosphor-icons/react';
 import { VoiceActivityIndicator } from '@/components/VoiceActivityIndicator';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { SimpleVoiceIndicator } from '@/components/SimpleVoiceIndicator';
 import { useVoiceActivity } from '@/hooks/use-voice-activity';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { CLIENT_CONFIG } from '@/lib/constants';
+import { toast } from 'sonner';
 
 interface CallControlsProps {
   sessionState: SessionState;
@@ -20,6 +24,9 @@ interface CallControlsProps {
 export function CallControls({ sessionState, onStartCall, onEndCall, onToggleMute, getCurrentMediaStream }: CallControlsProps) {
   const isMobile = useIsMobile();
   const mediaStream = getCurrentMediaStream();
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isCallingMobile, setIsCallingMobile] = useState(false);
+  
   const voiceActivity = useVoiceActivity(
     sessionState.status === 'connected' && !sessionState.isMuted ? mediaStream : null,
     {
@@ -52,6 +59,40 @@ export function CallControls({ sessionState, onStartCall, onEndCall, onToggleMut
 
   const isConnected = sessionState.status === 'connected';
   const isConnecting = sessionState.status === 'connecting';
+
+  const handleCallMobile = async () => {
+    if (!phoneNumber.trim()) {
+      toast.error('Please enter a phone number');
+      return;
+    }
+
+    setIsCallingMobile(true);
+    try {
+      const response = await fetch(`${CLIENT_CONFIG.backendBaseUrl}/call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number: phoneNumber,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Call failed: ${errorText}`);
+      }
+
+      const result = await response.json();
+      toast.success(`Call initiated to ${phoneNumber}`);
+      console.log('Call response:', result);
+    } catch (error: any) {
+      toast.error(`Failed to call: ${error.message}`);
+      console.error('Call error:', error);
+    } finally {
+      setIsCallingMobile(false);
+    }
+  };
   
   return (
     <TooltipProvider>
@@ -79,6 +120,41 @@ export function CallControls({ sessionState, onStartCall, onEndCall, onToggleMut
                 </>
               )}
             </Button>
+
+            {/* Vertical Separator */}
+            <div className="h-8 w-px bg-border" />
+
+            {/* Outbound Calling */}
+            <div className="flex items-center gap-2">
+              <Input
+                type="tel"
+                placeholder="Enter your mobile number"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCallMobile()}
+                className="w-64"
+                disabled={isCallingMobile}
+              />
+              <Button
+                onClick={handleCallMobile}
+                disabled={isCallingMobile || !phoneNumber.trim()}
+                variant="default"
+                size="lg"
+                className="gap-2"
+              >
+                <PhoneCall size={20} />
+                {isCallingMobile ? 'Calling...' : 'Call Mobile'}
+              </Button>
+            </div>
+
+            {/* Vertical Separator */}
+            <div className="h-8 w-px bg-border" />
+
+            {/* Inbound Calling Info */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg">
+              <Phone size={20} className="text-primary" />
+              <span className="text-sm font-medium">Call Toll-Free: +1 866 709 9132</span>
+            </div>
             
             {isConnected && (
               <div className="flex items-center gap-1">

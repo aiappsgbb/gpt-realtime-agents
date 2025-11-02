@@ -17,6 +17,12 @@ param logAnalyticsName string = ''
 param webRTCUrl string = ''
 param gptRealtimeUrl string = ''
 param gptRealtimeKey string = ''
+param azureOpenAiEndpointWs string = ''
+param azureOpenAiApiKey string = ''
+param azureOpenAiModelName string = ''
+param azureAcsConnKey string = ''
+param acsPhoneNumber string = ''
+param callbackEventsUri string = ''
 
 param containerAppsEnvironmentName string = ''
 param containerRegistryName string = ''
@@ -92,6 +98,42 @@ module audioBackend 'app/audio-backend.bicep' = {
       {
         name: 'VITE_BACKEND_BASE_URL'
         value: '${audioBackendUri}/api'
+      }
+      {
+        name: 'WEBRTC_URL'
+        value: webRTCUrl
+      }
+      {
+        name: 'AZURE_GPT_REALTIME_URL'
+        value: gptRealtimeUrl
+      }
+      {
+        name: 'AZURE_GPT_REALTIME_KEY'
+        value: gptRealtimeKey
+      }
+      {
+        name: 'AZURE_OPENAI_ENDPOINT_WS'
+        value: azureOpenAiEndpointWs
+      }
+      {
+        name: 'AZURE_OPENAI_API_KEY'
+        value: azureOpenAiApiKey
+      }
+      {
+        name: 'AZURE_OPENAI_MODEL_NAME'
+        value: azureOpenAiModelName
+      }
+      {
+        name: 'AZURE_ACS_CONN_KEY'
+        value: azureAcsConnKey
+      }
+      {
+        name: 'ACS_PHONE_NUMBER'
+        value: acsPhoneNumber
+      }
+      {
+        name: 'CALLBACK_EVENTS_URI'
+        value: callbackEventsUri
       }
     ]
   }

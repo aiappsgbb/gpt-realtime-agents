@@ -12,13 +12,31 @@
       "value": "${AZURE_LOCATION}"
     },
     "webRTCUrl": {
-      "value": "${WEBRTC_URL=https://swedencentral.realtimeapi-preview.ai.azure.com/v1/realtimertc}"
+      "value": "${WEBRTC_URL}"
     },
     "gptRealtimeUrl": {
       "value": "${AZURE_GPT_REALTIME_URL}"
     },
     "gptRealtimeKey": {
       "value": "${AZURE_GPT_REALTIME_KEY}"
+    },
+    "azureOpenAiEndpointWs": {
+      "value": "${AZURE_OPENAI_ENDPOINT_WS}"
+    },
+    "azureOpenAiApiKey": {
+      "value": "${AZURE_OPENAI_API_KEY}"
+    },
+    "azureOpenAiModelName": {
+      "value": "${AZURE_OPENAI_MODEL_NAME}"
+    },
+    "azureAcsConnKey": {
+      "value": "${AZURE_ACS_CONN_KEY}"
+    },
+    "acsPhoneNumber": {
+      "value": "${ACS_PHONE_NUMBER}"
+    },
+    "callbackEventsUri": {
+      "value": "${CALLBACK_EVENTS_URI}"
     },
     "audioBackendAppExists": {
       "value": false
