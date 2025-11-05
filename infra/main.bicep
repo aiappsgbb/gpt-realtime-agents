@@ -22,7 +22,6 @@ param azureOpenAiApiKey string = ''
 param azureOpenAiModelName string = ''
 param azureAcsConnKey string = ''
 param acsPhoneNumber string = ''
-param callbackEventsUri string = ''
 
 param containerAppsEnvironmentName string = ''
 param containerRegistryName string = ''
@@ -133,7 +132,11 @@ module audioBackend 'app/audio-backend.bicep' = {
       }
       {
         name: 'CALLBACK_EVENTS_URI'
-        value: callbackEventsUri
+        value: '${audioBackendUri}/api/callbacks'
+      }
+      {
+        name: 'CALLBACK_URI_HOST'
+        value: replace(audioBackendUri, 'https://', 'wss://')
       }
     ]
   }
