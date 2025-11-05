@@ -12,6 +12,7 @@ import { useVoiceActivity } from '@/hooks/use-voice-activity';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CLIENT_CONFIG } from '@/lib/constants';
 import { toast } from 'sonner';
+import logo from '../../logo.png';
 
 interface CallControlsProps {
   sessionState: SessionState;
@@ -99,6 +100,7 @@ export function CallControls({ sessionState, onStartCall, onEndCall, onToggleMut
       <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
+            <img src={logo} alt="VoiceCare Logo" className="h-12" />
             <Button
               onClick={isConnected ? onEndCall : onStartCall}
               disabled={isConnecting}
