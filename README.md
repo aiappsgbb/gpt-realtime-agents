@@ -2,6 +2,12 @@
 
 An AI voice interaction platform that enables businesses to deploy intelligent conversational agents across web and phone channels. This solution delivers natural, real-time voice conversations powered by Azure OpenAI's Realtime API, supporting 24/7 automated customer engagement with seamless human escalation when needed. Built for scalability and industry flexibility, it provides a unified framework for deploying AI voice agents in telecommunications, healthcare, retail, and other customer-facing sectors.
 
+<br/>
+
+| ![UI](./images/ui.png) |
+|-|
+
+
 ### Purpose
 The goal of this IP is to help customers quickly build a Proof of Concept for an Agentic Call Center, showcasing the capabilities of our AI voice-to-voice models and agent-based design while integrating seamlessly with their existing web service infrastructure.
 
