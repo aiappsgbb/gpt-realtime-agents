@@ -19,8 +19,8 @@ This solution provides two integration modes:
 1. **Web-based Realtime Chat** - Direct browser-to-AI or mobile-app-to-AI communication via WebRTC
 2. **Phone Call Integration** (Optional) - PSTN phone calls bridged to AI via Azure Communication Services over Web Sockets
 
-![Architecture](./images/architecture.png)
-
+|![Architecture](./images/architecture.png)|
+|-|
 
 ### Prerequisites
 
