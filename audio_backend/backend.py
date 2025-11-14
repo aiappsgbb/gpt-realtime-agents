@@ -75,7 +75,7 @@ REALTIME_SESSION_URL = _clean_env("AZURE_GPT_REALTIME_URL")
 WEBRTC_URL = _clean_env("WEBRTC_URL")
 DEFAULT_DEPLOYMENT = os.getenv("AZURE_GPT_REALTIME_DEPLOYMENT", "gpt-realtime")
 DEFAULT_VOICE = os.getenv("AZURE_GPT_REALTIME_VOICE", "verse")
-AZURE_API_KEY = os.getenv("AZURE_GPT_REALTIME_KEY")
+AZURE_API_KEY = os.getenv("AZURE_GPT_REALTIME_KEY").replace('"', '').replace("'", "")
 
 
 def _optional_env(name: str, default: str) -> str:
@@ -151,12 +151,6 @@ def _parse_arguments(arguments: Dict[str, Any] | str) -> Dict[str, Any]:
 
 
 
-
-
-
-
-
-
 @app.get("/api/tools")
 async def list_tools() -> Dict[str, Any]:
     """Return tool definitions for the frontend to register with the realtime session."""
@@ -175,6 +169,12 @@ async def create_session(request: SessionRequest) -> SessionResponse:
     payload = {"model": deployment, "voice": voice}
     headers = await _get_auth_headers()
 
+    print("Creating realtime session with payload:")
+    print("===================================")
+    print("REALTIME_SESSION_URL:", REALTIME_SESSION_URL)
+    print("HEADERS:", headers)
+    print("PAYLOAD:", payload)
+    
     async with httpx.AsyncClient(timeout=15.0) as client:
         response = await client.post(REALTIME_SESSION_URL, headers=headers, json=payload)
         try:
