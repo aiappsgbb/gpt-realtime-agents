@@ -1,7 +1,30 @@
-# Ignore local build artifacts and dependencies
-node_modules
-frontend/node_modules
-**/__pycache__
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Python cache
+**/__pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Git
 .git
 .gitignore
+
+# Logs
+*.log
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS junk
+.DS_Store
+Thumbs.db
