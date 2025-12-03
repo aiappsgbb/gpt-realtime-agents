@@ -123,9 +123,9 @@ jobs:
           azd env set AZURE_OPENAI_ENDPOINT_WS "${{ secrets.AZURE_OPENAI_ENDPOINT_WS }}"
           azd env set AZURE_OPENAI_API_KEY "${{ secrets.AZURE_OPENAI_API_KEY }}"
           azd env set AZURE_ACS_CONN_KEY "${{ secrets.AZURE_ACS_CONN_KEY }}"
-          azd env set ACS_PHONE_NUMBER "${{ secrets.ACS_PHONE_NUMBER }}
-          azd env set AZURE_VOICELIVE_ENDPOINT "${{ secrets.AZURE_VOICELIVE_ENDPOINT }}
-          azd env set AZURE_VOICELIVE_API_KEY "${{ secrets.AZURE_VOICELIVE_API_KEY }}
+          azd env set ACS_PHONE_NUMBER "${{ secrets.ACS_PHONE_NUMBER }}"
+          azd env set AZURE_VOICELIVE_ENDPOINT "${{ secrets.AZURE_VOICELIVE_ENDPOINT }}"
+          azd env set AZURE_VOICELIVE_API_KEY "${{ secrets.AZURE_VOICELIVE_API_KEY }}"
 
       - name: Create Resource Group (if needed)
         if: ${{ env.TARGET_SCOPE == 'resourceGroup' }}
