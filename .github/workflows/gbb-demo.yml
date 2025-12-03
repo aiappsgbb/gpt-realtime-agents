@@ -105,6 +105,18 @@ jobs:
             --tenant-id "$Env:AZURE_TENANT_ID"
         shell: pwsh
 
+      - name: Set environment variables for shared resources
+        run: |
+          azd env set WEBRTC_URL "${{ secrets.WEBRTC_URL }}"
+          azd env set AZURE_GPT_REALTIME_URL "${{ secrets.AZURE_GPT_REALTIME_URL }}"
+          azd env set AZURE_GPT_REALTIME_KEY "${{ secrets.AZURE_GPT_REALTIME_KEY }}"
+          azd env set AZURE_OPENAI_ENDPOINT_WS "${{ secrets.AZURE_OPENAI_ENDPOINT_WS }}"
+          azd env set AZURE_OPENAI_API_KEY "${{ secrets.AZURE_OPENAI_API_KEY }}"
+          azd env set AZURE_ACS_CONN_KEY "${{ secrets.AZURE_ACS_CONN_KEY }}"
+          azd env set ACS_PHONE_NUMBER "${{ secrets.ACS_PHONE_NUMBER }}
+          azd env set AZURE_VOICELIVE_ENDPOINT "${{ secrets.AZURE_VOICELIVE_ENDPOINT }}
+          azd env set AZURE_VOICELIVE_API_KEY "${{ secrets.AZURE_VOICELIVE_API_KEY }}
+
       - name: Create Resource Group (if needed)
         if: ${{ env.TARGET_SCOPE == 'resourceGroup' }}
         uses: azure/cli@v2
