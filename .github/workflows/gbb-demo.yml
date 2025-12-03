@@ -105,6 +105,16 @@ jobs:
             --tenant-id "$Env:AZURE_TENANT_ID"
         shell: pwsh
 
+      - name: Ensure AZD environment exists
+        run: |
+          if ! azd env list | grep -q "${AZURE_ENV_NAME}"; then
+            echo "Environment ${AZURE_ENV_NAME} does not exist. Creating..."
+            azd env new "${AZURE_ENV_NAME}" --location "${AZURE_LOCATION}" --no-prompt
+          else
+            echo "Environment ${AZURE_ENV_NAME} already exists."
+          fi
+        shell: bash
+
       - name: Set environment variables for shared resources
         run: |
           azd env set WEBRTC_URL "${{ secrets.WEBRTC_URL }}"
