@@ -1,0 +1,39 @@
+{
+  "name": "Agentic Call Center with AI Voice Models",
+  "description": "An AI voice interaction platform that enables businesses to deploy intelligent conversational agents across web and phone channels. This solution delivers natural, real-time voice conversations powered by Azure OpenAI's Realtime API, supporting 24/7 automated customer engagement with seamless human escalation when needed. Built for scalability and industry flexibility, it provides a unified framework for deploying AI voice agents in telecommunications, healthcare, retail, and other customer-faci",
+  "maturity": "Silver",
+  "region": "EMEA",
+  "industry": "Cross",
+  "owner": "selhousseini",
+  "pattern": [
+    "Cloud Native",
+    "AI/ML",
+    "Application Innovation",
+    "Digital Transformation"
+  ],
+  "services": [
+    "Azure OpenAI",
+    "Azure Container Apps",
+    "Azure Application Insights",
+    "Azure Cognitive Services",
+    "Azure Cosmos DB"
+  ],
+  "tags": [],
+  "version": "1.0.0",
+  "createdDate": "2025-12-03",
+  "lastUpdated": "2025-12-03",
+  "license": "MIT",
+  "repository": {
+    "url": "https://github.com/aiappsgbb/gpt-realtime-agents",
+    "branch": "main"
+  },
+  "documentation": {
+    "readme": "https://github.com/aiappsgbb/gpt-realtime-agents/blob/main/README.md",
+    "architecture": "",
+    "demo": ""
+  },
+  "contacts": {
+    "technical": [],
+    "business": []
+  }
+}
