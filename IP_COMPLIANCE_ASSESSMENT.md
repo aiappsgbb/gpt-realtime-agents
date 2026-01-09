@@ -11,10 +11,10 @@
 
 This assessment evaluates the gpt-realtime-agents repository against Azure Developer CLI template standards, security best practices, and code quality guidelines as defined in `.github/copilot-instructions.md`, `.github/azure-bestpractices.md`, and `.github/bicep-deployment-bestpractices.md`.
 
-**Overall Compliance Score**: 62% (Needs Improvement)  
-**Deployment Ready**: ⚠️ **Conditional** (with security vulnerabilities)  
-**Critical Issues**: 5 High-severity security violations  
-**Recommended Actions**: 12 items requiring immediate attention
+**Overall Compliance Score**: 68% (Needs Improvement)  
+**Deployment Ready**: ⚠️ **Conditional** (Managed Identity configured but RBAC missing)  
+**Critical Issues**: 4 High-severity issues  
+**Recommended Actions**: 10 items requiring immediate attention
 
 ---
 
@@ -24,7 +24,7 @@ This assessment evaluates the gpt-realtime-agents repository against Azure Devel
 |----------|--------|-------|-----------------|
 | IP Metadata | ✅ Pass | 95% | 0 |
 | Repository Structure | ✅ Pass | 90% | 0 |
-| Security & Authentication | ❌ **FAIL** | 30% | **5** |
+| Security & Authentication | ⚠️ Warning | 55% | **4** |
 | Code Quality | ⚠️ Warning | 60% | 0 |
 | Infrastructure as Code | ⚠️ Warning | 65% | 1 |
 | Deployment Configuration | ⚠️ Warning | 70% | 1 |
@@ -34,13 +34,13 @@ This assessment evaluates the gpt-realtime-agents repository against Azure Devel
 
 ## ❌ CRITICAL FAILURES - Security & Authentication
 
-### 🚨 FAILURE 1: API Keys Used Throughout Codebase
+### 🚨 FAILURE 1: API Keys Available as Configuration Option
 **Category**: Security & Compliance  
 **Severity**: **HIGH** 🔴  
 **Violated Guideline**: Azure Best Practices - Zero Trust Authentication  
 
 **Issue Description**:
-The repository extensively uses API keys for Azure OpenAI and Azure Communication Services authentication, directly violating the "**NEVER use API keys**" policy stated in `azure-bestpractices.md`.
+While the code implements Managed Identity as the preferred authentication method (lines 92-93, 142-144 in `backend.py`), API keys are still accepted as a fallback configuration option. The infrastructure templates and deployment configurations explicitly provide API keys, which violates the "**NEVER use API keys**" policy stated in `azure-bestpractices.md`. This fallback pattern allows deployments to bypass Zero Trust authentication.
 
 **Specific Violations**:
 1. **infra/main.bicep (lines 119, 127)**: API keys passed as environment variables
@@ -55,11 +55,22 @@ The repository extensively uses API keys for Azure OpenAI and Azure Communicatio
    }
    ```
 
-2. **audio_backend/backend.py (lines 134-135)**: API key used in HTTP headers
+2. **audio_backend/backend.py (lines 134-144)**: Fallback to API key when provided
    ```python
-   if browser_realtime_config.azure_api_key:
-       headers["api-key"] = browser_realtime_config.azure_api_key
+   async def _get_auth_headers(connection_mode: ConnectionMode) -> Dict[str, str]:
+       headers = {"Content-Type": "application/json"}
+       
+       if connection_mode == "webrtc":
+           if browser_realtime_config.azure_api_key:
+               headers["api-key"] = browser_realtime_config.azure_api_key
+               return headers
+       
+       # Prefer managed identity / Azure AD tokens when available
+       token = await token_provider()
+       headers["Authorization"] = f"Bearer {token}"
+       return headers
    ```
+   Note: While Managed Identity is preferred (lines 142-144), the API key fallback is checked first (lines 134-136).
 
 3. **audio_backend/backend_acs.py (line 51)**: Direct API key usage
    ```python
@@ -79,125 +90,145 @@ The repository extensively uses API keys for Azure OpenAI and Azure Communicatio
    ```
 
 **Impact**: 
-- **Critical security vulnerability**: API keys can be exposed in logs, environment variables, and configuration files
-- Non-compliance with Zero Trust security model
-- Increased attack surface for credential theft
-- Violation of Microsoft security policies
+- **Policy violation**: While Managed Identity is implemented, the API key fallback allows non-compliant deployments
+- Deployments using API keys bypass Zero Trust security model
+- API keys can be exposed in logs, environment variables, and configuration files
+- Increased attack surface for credential theft in API key-based deployments
+- Inconsistent security posture across different deployment scenarios
 
 **Recommendation**:
-Implement ChainedTokenCredential pattern with Managed Identity:
+The code already uses `DefaultAzureCredential` (which internally implements a credential chain similar to `ChainedTokenCredential`), which is correct. However, the API key fallback logic and configuration should be removed:
 
 ```python
-# CORRECT approach
-from azure.identity import AzureDeveloperCliCredential, ManagedIdentityCredential, ChainedTokenCredential
-
-credential = ChainedTokenCredential(
-    AzureDeveloperCliCredential(),  # Local development
-    ManagedIdentityCredential()     # Production
-)
-
-# For Azure OpenAI
-from azure.identity import get_bearer_token_provider
-token_provider = get_bearer_token_provider(
-    credential, 
-    "https://cognitiveservices.azure.com/.default"
-)
+# audio_backend/backend.py - Remove API key fallback
+async def _get_auth_headers(connection_mode: ConnectionMode) -> Dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    
+    # REMOVE the if conditions checking for API keys
+    # Always use managed identity
+    token = await token_provider()
+    headers["Authorization"] = f"Bearer {token}"
+    return headers
 ```
 
-Remove all instances of:
-- `AZURE_GPT_REALTIME_KEY`
-- `AZURE_OPENAI_API_KEY`
-- `AZURE_VOICELIVE_API_KEY`
-- `AZURE_ACS_CONN_KEY` (contains access key in connection string)
+Remove API key parameters from configuration:
+- `audio_backend/common/config.py`: Remove `azure_api_key` field
+- Remove all environment variable usage of:
+  - `AZURE_GPT_REALTIME_KEY`
+  - `AZURE_OPENAI_API_KEY`
+  - `AZURE_VOICELIVE_API_KEY`
+  - `AZURE_ACS_CONN_KEY` (contains access key in connection string)
+
+Remove from infrastructure:
+- `infra/main.bicep`: Remove parameters for API keys
+- `infra/main.parameters.json`: Remove API key values
+- `.github/workflows/gbb-demo.yml`: Remove API key secrets
 
 ---
 
-### 🚨 FAILURE 2: No Managed Identity Implementation
+### 🚨 FAILURE 2: Managed Identity Exists But Missing RBAC Configuration
 **Category**: Security & Compliance  
 **Severity**: **HIGH** 🔴  
-**Violated Guideline**: Azure Best Practices - Managed Identity Requirements
+**Violated Guideline**: Azure Best Practices - RBAC Configuration
 
 **Issue Description**:
-The infrastructure does not implement User Assigned Managed Identity for Azure Container Apps, which is a mandatory requirement according to `azure-bestpractices.md` and `bicep-deployment-bestpractices.md`.
+The infrastructure **does implement** User Assigned Managed Identity (`infra/app/audio-backend.bicep` lines 16-19) and correctly configures `AZURE_CLIENT_ID` (lines 39-41). However, no RBAC role assignments are configured for this identity to access Azure OpenAI, Azure Communication Services, or other Azure resources.
+
+**Current State**:
+✅ User Assigned Managed Identity created (`apiIdentity`)  
+✅ Identity assigned to Container App  
+✅ `AZURE_CLIENT_ID` environment variable configured  
+❌ **No RBAC role assignments** to allow identity to access Azure services  
 
 **Specific Violations**:
-1. **infra/main.bicep**: No User Assigned Managed Identity module
-2. **infra/app/audio-backend.bicep**: Missing identity configuration
-3. **Environment variables**: Missing `AZURE_CLIENT_ID` in Container Apps configuration
+1. **infra/main.bicep**: No role assignments for Cognitive Services (Azure OpenAI)
+2. **infra/main.bicep**: No role assignments for Azure Communication Services
+3. Without RBAC, the managed identity cannot authenticate even though it's configured
 
 **Impact**:
-- Cannot use Azure AD authentication for Azure services
-- Forced reliance on API keys (security vulnerability)
-- Non-compliance with Azure security best practices
-- Cannot implement proper RBAC
+- Managed Identity is configured but **cannot access Azure services**
+- Deployments forced to use API keys because RBAC is missing
+- Zero Trust authentication unavailable due to missing permissions
+- Non-compliance with least-privilege access control
 
 **Recommendation**:
-Add User Assigned Managed Identity to `infra/main.bicep`:
-
-```bicep
-module userAssignedIdentity 'shared/security/user-assigned-identity.bicep' = {
-  name: 'user-assigned-identity'
-  scope: resourceGroup
-  params: {
-    name: '${abbrs.managedIdentityUserAssignedIdentities}${resourceToken}'
-    location: location
-    tags: tags
-  }
-}
-
-// Update audio-backend module to use identity
-module audioBackend 'app/audio-backend.bicep' = {
-  params: {
-    userAssignedIdentityId: userAssignedIdentity.outputs.id
-    managedIdentityPrincipalId: userAssignedIdentity.outputs.principalId
-    env: [
-      {
-        name: 'AZURE_CLIENT_ID'
-        value: userAssignedIdentity.outputs.clientId  // ✅ REQUIRED
-      }
-      // ... other env vars WITHOUT api keys
-    ]
-  }
-}
-```
-
----
-
-### 🚨 FAILURE 3: No RBAC Role Assignments
-**Category**: Security & Compliance  
-**Severity**: **HIGH** 🔴  
-**Violated Guideline**: Bicep Deployment Best Practices - RBAC Configuration
-
-**Issue Description**:
-No RBAC role assignments are configured for the managed identity to access Azure OpenAI, Azure Communication Services, or other Azure resources.
-
-**Impact**:
-- Even with Managed Identity implemented, services cannot authenticate
-- No least-privilege access control
-- Cannot remove API keys without RBAC
-
-**Recommendation**:
-Add RBAC role assignments in `infra/main.bicep`:
+The identity infrastructure is correct. Add RBAC role assignments in `infra/main.bicep` to enable the managed identity:
 
 ```bicep
 // Cognitive Services User role for Azure OpenAI
 resource openAiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(openAi.id, userAssignedIdentity.outputs.principalId, 'Cognitive Services User')
+  name: guid(openAi.id, audioBackend.outputs.SERVICE_API_IDENTITY_PRINCIPAL_ID, 'Cognitive Services User')
   scope: openAi
   properties: {
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions', 
       'a97b65f3-24c7-4388-baec-2e87135dc908'  // Cognitive Services User
     )
-    principalId: userAssignedIdentity.outputs.principalId
+    principalId: audioBackend.outputs.SERVICE_API_IDENTITY_PRINCIPAL_ID
     principalType: 'ServicePrincipal'
   }
 }
 
-// Add similar role assignments for:
-// - Azure Communication Services
-// - Azure Storage (if used)
-// - Azure Key Vault
+// Note: This requires Azure OpenAI resource to be provisioned in main.bicep
+```
+
+---
+
+### 🚨 FAILURE 3: Azure Service Resources Not Provisioned in Bicep
+**Category**: Infrastructure as Code  
+**Severity**: **HIGH** 🔴  
+**Violated Guideline**: Bicep Deployment Best Practices - Complete Infrastructure Provisioning
+
+**Issue Description**:
+The `infra/main.bicep` file doesn't provision Azure OpenAI or Azure Communication Services resources. It only provisions hosting infrastructure (Container Apps, Container Registry, Monitoring). Since RBAC role assignments require these resources to exist in the Bicep template, their absence blocks proper RBAC configuration.
+
+**Current State**:
+- ✅ Container Apps Environment
+- ✅ Container Registry
+- ✅ Application Insights
+- ❌ Azure OpenAI Service (missing - required for RBAC)
+- ❌ Azure Communication Services (missing - required for RBAC)
+- ⚠️ Azure Key Vault (missing - recommended)
+
+**Impact**:
+- Cannot configure RBAC because Azure OpenAI resource doesn't exist in template
+- Users must manually provision Azure OpenAI and ACS
+- Not truly "one-click" deployment via `azd up`
+- Harder to manage resource lifecycle
+- Forces use of API keys since RBAC cannot be configured
+
+**Recommendation**:
+Add Azure service modules to `infra/main.bicep` to enable RBAC configuration:
+
+```bicep
+// Azure OpenAI
+module openAi 'shared/ai/cognitiveservices.bicep' = {
+  name: 'openai'
+  scope: resourceGroup
+  params: {
+    name: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    location: location
+    tags: tags
+    kind: 'OpenAI'
+    sku: 'S0'
+    deployments: [
+      {
+        name: 'gpt-realtime'
+        model: {
+          format: 'OpenAI'
+          name: 'gpt-4o-realtime-preview'
+          version: '2024-10-01'
+        }
+        sku: {
+          name: 'Standard'
+          capacity: 1
+        }
+      }
+    ]
+  }
+}
+
+// Then add RBAC role assignment (as shown in FAILURE 2)
 ```
 
 ---
@@ -239,42 +270,6 @@ Store only the endpoint URL:
   name: 'AZURE_ACS_ENDPOINT'
   value: 'https://<resource>.communication.azure.com'
 }
-```
-
----
-
-### 🚨 FAILURE 5: Missing User Assigned Managed Identity Module
-**Category**: Infrastructure as Code  
-**Severity**: **HIGH** 🔴  
-**Violated Guideline**: Bicep Deployment Best Practices - Managed Identity Requirements
-
-**Issue Description**:
-The `infra/shared/security/` directory exists but there's no `user-assigned-identity.bicep` module, which is required for all Azure Container Apps deployments.
-
-**Impact**:
-- Cannot implement managed identity even if code is updated
-- Infrastructure incomplete for Zero Trust security
-
-**Recommendation**:
-Create `infra/shared/security/user-assigned-identity.bicep`:
-
-```bicep
-targetScope = 'resourceGroup'
-
-param name string
-param location string = resourceGroup().location
-param tags object = {}
-
-resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: name
-  location: location
-  tags: tags
-}
-
-output id string = userAssignedIdentity.id
-output principalId string = userAssignedIdentity.properties.principalId
-output clientId string = userAssignedIdentity.properties.clientId
-output name string = userAssignedIdentity.name
 ```
 
 ---
@@ -959,17 +954,17 @@ See [SECURITY.md](SECURITY.md) for security best practices and vulnerability rep
 
 | Severity | Count | Items |
 |----------|-------|-------|
-| 🔴 **HIGH** | **5** | API Keys Usage, No Managed Identity, No RBAC, ACS Access Key, Missing Identity Module |
-| 🟡 **MEDIUM** | **6** | print() Statements, No Type Hints, No Tests, OpenTelemetry, Bicep Resources, Non-root User |
+| 🔴 **HIGH** | **4** | API Keys as Fallback Option, Missing RBAC, No Azure Services in Bicep, ACS Access Key |
+| 🟡 **MEDIUM** | **6** | print() Statements, No Type Hints, No Tests, OpenTelemetry, Non-root User, azure.yaml env vars |
 | 🟢 **LOW** | **3** | No Linting Config, Port 8080, Azure Linux Base Image |
 
 ### By Category
 
 | Category | High | Medium | Low | Total |
 |----------|------|--------|-----|-------|
-| Security & Authentication | 5 | 0 | 0 | 5 |
-| Code Quality | 0 | 4 | 1 | 5 |
-| Infrastructure | 0 | 2 | 1 | 3 |
+| Security & Authentication | 2 | 0 | 0 | 2 |
+| Infrastructure | 2 | 1 | 1 | 4 |
+| Code Quality | 0 | 3 | 1 | 4 |
 | Containerization | 0 | 1 | 1 | 2 |
 | Deployment | 0 | 1 | 0 | 1 |
 
@@ -979,32 +974,30 @@ See [SECURITY.md](SECURITY.md) for security best practices and vulnerability rep
 
 ### Phase 1: Critical Security Fixes (Required for Production)
 
-**Estimated Effort**: 3-5 days
+**Estimated Effort**: 2-3 days
 
-1. **Create User Assigned Managed Identity Module**
-   - File: `infra/shared/security/user-assigned-identity.bicep`
-   - Add to `infra/main.bicep`
-   - Priority: **P0** (Blocker)
+1. **Add Azure OpenAI and ACS Resource Provisioning**
+   - Add modules to `infra/main.bicep` for Azure OpenAI and Azure Communication Services
+   - Priority: **P0** (Blocker - required for RBAC)
 
-2. **Update Application Code for Managed Identity**
-   - Update `audio_backend/backend.py` to use `DefaultAzureCredential`
-   - Update `audio_backend/backend_acs.py` to use credential-based auth
-   - Remove all API key references
-   - Priority: **P0** (Blocker)
-
-3. **Configure RBAC Role Assignments**
+2. **Configure RBAC Role Assignments**
    - Add Cognitive Services User role for Azure OpenAI
    - Add appropriate ACS roles
    - Priority: **P0** (Blocker)
 
+3. **Remove API Key Fallback Logic**
+   - Update `audio_backend/backend.py` to remove API key conditional checks
+   - Update `audio_backend/common/config.py` to remove API key fields
+   - Priority: **P0** (Blocker)
+
 4. **Update Bicep Environment Variables**
    - Remove: `AZURE_GPT_REALTIME_KEY`, `AZURE_OPENAI_API_KEY`, `AZURE_VOICELIVE_API_KEY`
-   - Add: `AZURE_CLIENT_ID`, `AZURE_OPENAI_ENDPOINT`, `AZURE_ACS_ENDPOINT`
+   - Replace with endpoint URLs only
    - Priority: **P0** (Blocker)
 
 5. **Update GitHub Actions Workflow**
-   - Remove API key secrets
-   - Add managed identity configuration
+   - Remove API key secrets from workflow
+   - Update to use managed identity for deployment
    - Priority: **P0** (Blocker)
 
 ### Phase 2: Code Quality Improvements (Recommended for Maintainability)
@@ -1034,21 +1027,15 @@ See [SECURITY.md](SECURITY.md) for security best practices and vulnerability rep
 
 ### Phase 3: Infrastructure Enhancements (Optional for Completeness)
 
-**Estimated Effort**: 2-3 days
+**Estimated Effort**: 1-2 days
 
-10. **Add Azure Service Modules**
-    - Azure OpenAI provisioning
-    - Azure Communication Services provisioning
-    - Azure Key Vault module
-    - Priority: **P2** (Medium)
-
-11. **Update Containerization**
+10. **Update Containerization**
     - Switch to Azure Linux base image
     - Add non-root user
     - Change to port 80
     - Priority: **P2** (Medium)
 
-12. **Add OpenTelemetry Instrumentation**
+11. **Add OpenTelemetry Instrumentation**
     - Configure Azure Monitor OpenTelemetry
     - Add distributed tracing
     - Priority: **P2** (Medium)
@@ -1083,48 +1070,54 @@ These items can be fixed quickly (< 1 day) and significantly improve compliance:
 
 ## 🔒 Security Risk Assessment
 
-### Current Security Posture: **HIGH RISK** 🔴
+### Current Security Posture: **MEDIUM-HIGH RISK** 🟡
+
+**Positive Factors**:
+✅ Managed Identity infrastructure correctly implemented  
+✅ `DefaultAzureCredential` used as preferred auth method  
+✅ `AZURE_CLIENT_ID` properly configured  
 
 **Risk Factors**:
-1. **API Keys Exposed in Multiple Locations**
-   - Risk: Credential theft, unauthorized access
-   - Likelihood: High
-   - Impact: Critical
-
-2. **No Managed Identity**
-   - Risk: Cannot implement Zero Trust
-   - Likelihood: Certain
+1. **API Keys as Fallback Configuration**
+   - Risk: Deployments can bypass Zero Trust
+   - Likelihood: High (default parameters include API keys)
    - Impact: High
 
-3. **No RBAC Configuration**
-   - Risk: Excessive permissions or no access
-   - Likelihood: High
+2. **No RBAC Configuration**
+   - Risk: Managed Identity cannot access Azure services
+   - Likelihood: Certain
+   - Impact: High (forces API key usage)
+
+3. **Azure Services Not Provisioned**
+   - Risk: Cannot configure proper RBAC
+   - Likelihood: Certain
    - Impact: High
 
 4. **Connection Strings with Access Keys**
    - Risk: Credential exposure in logs/config
-   - Likelihood: High
-   - Impact: High
+   - Likelihood: Medium
+   - Impact: Medium
 
 ### Target Security Posture: **LOW RISK** 🟢
 
 After implementing Phase 1 remediations:
-- ✅ Zero API keys in codebase
-- ✅ Managed Identity for all Azure services
-- ✅ Least-privilege RBAC
-- ✅ Credential-free authentication
+- ✅ Zero API keys in codebase (remove fallback)
+- ✅ Managed Identity for all Azure services (already implemented)
+- ✅ Least-privilege RBAC (to be configured)
+- ✅ Azure services provisioned in Bicep (to be added)
+- ✅ Credential-free authentication enforced
 
 ---
 
 ## 📈 Compliance Score Projection
 
 ### Current State
-**Overall**: 62% compliant
+**Overall**: 68% compliant
 
 ### After Phase 1 (Security Fixes)
-**Overall**: 85% compliant
-- Security: 30% → 95%
-- Infrastructure: 65% → 85%
+**Overall**: 88% compliant
+- Security: 55% → 95%
+- Infrastructure: 65% → 90%
 
 ### After Phase 2 (Code Quality)
 **Overall**: 92% compliant
@@ -1162,27 +1155,31 @@ For implementing remediations, refer to:
 
 ## 📋 Conclusion
 
-The **gpt-realtime-agents** repository demonstrates good architectural design and documentation but has **critical security vulnerabilities** due to API key usage throughout the codebase. This directly violates Azure Best Practices and prevents production deployment under Microsoft security policies.
+The **gpt-realtime-agents** repository demonstrates **good security foundation** with Managed Identity infrastructure correctly implemented and `DefaultAzureCredential` authentication pattern in place. However, there are **critical gaps** that prevent full Zero Trust compliance:
+
+1. **API keys are still accepted as a fallback** configuration option
+2. **RBAC role assignments are missing**, preventing managed identity from accessing Azure services
+3. **Azure services (OpenAI, ACS) are not provisioned** in Bicep templates, blocking RBAC configuration
 
 ### Key Recommendations
 
-1. **Immediate Action Required** (P0): Implement Managed Identity authentication to eliminate all API keys
-2. **High Priority** (P1): Improve code quality with proper logging, type hints, and testing
-3. **Medium Priority** (P2): Complete infrastructure provisioning and enhance observability
+1. **High Priority** (P0): Complete the security implementation by adding Azure service provisioning and RBAC
+2. **High Priority** (P1): Remove API key fallback to enforce Zero Trust
+3. **Medium Priority** (P2): Improve code quality with proper logging, type hints, and testing
 
 ### Deployment Status
 
-- **Current**: ⚠️ **NOT PRODUCTION READY** due to security violations
-- **After Phase 1**: ✅ **Production Ready** with secure authentication
-- **After Phase 2-3**: ✅ **Gold Standard** with comprehensive quality controls
+- **Current**: ⚠️ **CONDITIONALLY PRODUCTION READY** - Managed Identity is configured but requires RBAC setup; API key fallback should be removed for full compliance
+- **After Phase 1**: ✅ **FULLY PRODUCTION READY** with complete Zero Trust authentication
+- **After Phase 2-3**: ✅ **GOLD STANDARD** with comprehensive quality controls
 
 ### Estimated Timeline
 
-- **Phase 1 (Critical)**: 3-5 days → Production-ready
+- **Phase 1 (Critical)**: 2-3 days → Full Zero Trust compliance
 - **Phase 2 (Quality)**: 2-3 days → Maintainable codebase
-- **Phase 3 (Complete)**: 2-3 days → Gold standard template
+- **Phase 3 (Complete)**: 1-2 days → Gold standard template
 
-**Total Estimated Effort**: 7-11 days for full compliance
+**Total Estimated Effort**: 5-8 days for full compliance
 
 ---
 
