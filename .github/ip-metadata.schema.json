@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/aiappsgbb/template/schemas/ip-metadata.schema.json",
+  "title": "Intellectual Property Metadata",
+  "description": "Schema for IP metadata standardization across AI Apps GBB projects",
+  "type": "object",
+  "required": [
+    "name",
+    "description",
+    "maturity",
+    "region",
+    "industry",
+    "owner",
+    "pattern",
+    "services"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the intellectual property",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the IP",
+      "minLength": 10,
+      "maxLength": 500
+    },
+    "maturity": {
+      "type": "string",
+      "description": "Maturity level of the IP",
+      "enum": ["Gold", "Silver", "Bronze"]
+    },
+    "region": {
+      "type": "string", 
+      "description": "Primary region for this IP",
+      "enum": ["AMER", "EMEA", "ASIA"]
+    },
+    "industry": {
+      "type": "string",
+      "description": "Target industry vertical",
+      "enum": [
+        "Cross",
+        "Financial Services",
+        "Retail",
+        "Energy",
+        "Healthcare",
+        "Manufacturing",
+        "Government",
+        "Education",
+        "Media & Entertainment",
+        "Technology"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "description": "Microsoft alias of the IP owner",
+      "pattern": "^[a-zA-Z0-9._-]+$",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "pattern": {
+      "type": "array",
+      "description": "GBB specialization patterns and additional patterns",
+      "items": {
+        "type": "string",
+        "enum": [
+          "AI/ML",
+          "Data & Analytics", 
+          "Application Innovation",
+          "Infrastructure",
+          "Security",
+          "IoT",
+          "Mixed Reality",
+          "Sustainability",
+          "Digital Transformation",
+          "Cloud Native",
+          "Integration",
+          "Business Intelligence",
+          "DevOps",
+          "OCR",
+          "Document Intelligence",
+          "Voice"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "services": {
+      "type": "array",
+      "description": "Azure services used in this IP",
+      "items": {
+        "type": "string",
+        "examples": [
+          "Azure OpenAI",
+          "Azure AI Search",
+          "Azure Container Apps",
+          "Azure Functions",
+          "Azure App Service",
+          "Azure Cosmos DB",
+          "Azure SQL Database",
+          "Azure Storage",
+          "Azure Key Vault",
+          "Azure Monitor",
+          "Azure Machine Learning",
+          "Azure Cognitive Services",
+          "Azure Event Hubs",
+          "Azure Service Bus",
+          "Azure API Management",
+          "Azure Document Intelligence",
+          "Azure Communication Services",
+          "AI Foundry",
+          "Azure API Center",
+          "Azure Postgres"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "tags": {
+      "type": "array",
+      "description": "Additional tags for categorization",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50
+      },
+      "uniqueItems": true
+    },
+    "version": {
+      "type": "string",
+      "description": "IP version following semantic versioning",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.-]+)?$",
+      "default": "1.0.0"
+    },
+    "createdDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when the IP was created (YYYY-MM-DD)"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when the IP was last updated (YYYY-MM-DD)"
+    },
+    "license": {
+      "type": "string",
+      "description": "License type for the IP",
+      "default": "MIT",
+      "examples": ["MIT", "Apache-2.0", "GPL-3.0", "BSD-3-Clause", "Proprietary"]
+    },
+    "repository": {
+      "type": "object",
+      "description": "Repository information",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Repository URL"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Main branch name",
+          "default": "main"
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "description": "Documentation links",
+      "properties": {
+        "readme": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to README documentation"
+        },
+        "architecture": {
+          "type": "string", 
+          "format": "uri",
+          "description": "Link to architecture documentation"
+        },
+        "demo": {
+          "type": "string",
+          "format": "uri", 
+          "description": "Link to demo or walkthrough"
+        }
+      }
+    },
+    "contacts": {
+      "type": "object",
+      "description": "Contact information",
+      "properties": {
+        "technical": {
+          "type": "array",
+          "description": "Technical contacts",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+$"
+          }
+        },
+        "business": {
+          "type": "array",
+          "description": "Business contacts",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+$"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
