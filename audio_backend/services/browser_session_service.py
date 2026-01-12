@@ -1,8 +1,9 @@
-"""Browser-facing session orchestration helpers."""
+"""Browser-facing session orchestration helpers with Zero Trust authentication."""
 
 from __future__ import annotations
 
 import uuid
+import logging
 from dataclasses import dataclass
 from typing import Dict, Literal
 
@@ -14,6 +15,8 @@ from common.config import (
     get_browser_realtime_config,
     get_voice_live_config,
 )
+
+logger = logging.getLogger(__name__)
 
 ConnectionMode = Literal["webrtc", "voice-live"]
 
@@ -40,9 +43,10 @@ async def create_browser_session(
     voice: str,
     realtime_headers: Dict[str, str] | None,
 ) -> BrowserSession:
-    """Create a session for the requested browser connection mode."""
+    """Create a session for the requested browser connection mode using Zero Trust authentication."""
 
-    print(f"[create_browser_session] connection_mode={connection_mode}, deployment={deployment}, voice={voice}")
+    logger.info("[create_browser_session] connection_mode=%s, deployment=%s, voice=%s", 
+                connection_mode, deployment, voice)
     if connection_mode  == "webrtc":
         return await _create_gpt_realtime_session(
             deployment=deployment,
@@ -87,16 +91,22 @@ async def _create_gpt_realtime_session(
 
 
 def _create_voice_live_session(*, deployment: str, voice: str) -> BrowserSession:
+    """Create a Voice Live session.
+    
+    Note: Voice Live mode requires managed identity authentication configured.
+    This function creates a session using the endpoint URL only.
+    """
     config: VoiceLiveConfig = get_voice_live_config()
     model = deployment or config.default_model
 
     url = f"{config.endpoint}/voice-live/realtime?api-version=2025-05-01-preview&model={model}"
     url = url.replace("https://", "wss://")
 
-    # Voice Live sessions rely on API key authentication; reuse as ephemeral key for the client.
+    # Voice Live requires managed identity - ephemeral key will be obtained through Azure AD auth
+    # Generate a unique session ID for tracking
     return BrowserSession(
         session_id=str(uuid.uuid4()),
-        ephemeral_key=config.api_key,
+        ephemeral_key="",  # No API key - uses managed identity token
         realtime_url=url,
         deployment=model or config.default_model,
         voice=voice or config.default_voice,

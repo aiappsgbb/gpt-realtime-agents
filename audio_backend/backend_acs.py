@@ -18,9 +18,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from azure.core.credentials import AzureKeyCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from rich.console import Console
-from common.config import get_voice_live_config, VoiceLiveConfig, get_browser_realtime_config
+from common.config import get_voice_live_config, VoiceLiveConfig, get_browser_realtime_config, get_acs_config
 from acs.bridges.gpt_realtime_bridge import GptRealtimeBridge
 from acs.bridges.voice_live_bridge import VoiceLiveBridge
 
@@ -45,26 +45,24 @@ logger = logging.getLogger(__name__)
 # Initialize router for ACS routes
 router = APIRouter(prefix="", tags=["ACS Phone Calls"])
 
-# Environment variables - matching .env file
-llm_endpoint_ws = os.environ.get("AZURE_OPENAI_ENDPOINT_WS").replace('"', '').replace("'", "")
-llm_deployment = os.environ.get("AZURE_OPENAI_MODEL_NAME").replace('"', '').replace("'", "")
-llm_key = os.environ.get("AZURE_OPENAI_API_KEY").replace('"', '').replace("'", "")
-acs_source_number = os.environ.get("ACS_PHONE_NUMBER").replace('"', '').replace("'", "")
-acs_connection_string = os.environ.get("AZURE_ACS_CONN_KEY").replace('"', '').replace("'", "")
-acs_callback_path = os.environ.get("CALLBACK_EVENTS_URI").replace('"', '').replace("'", "")
-acs_media_streaming_websocket_host = os.environ.get("CALLBACK_URI_HOST").replace('"', '').replace("'", "")
+# Initialize Azure credential for Zero Trust authentication
+credential = DefaultAzureCredential(exclude_interactive_browser_credential=False)
 
+# Environment variables - using endpoints only (no API keys for Zero Trust compliance)
+llm_endpoint_ws = os.environ.get("AZURE_OPENAI_ENDPOINT_WS", "").replace('"', '').replace("'", "")
+llm_deployment = os.environ.get("AZURE_OPENAI_MODEL_NAME", "").replace('"', '').replace("'", "")
+acs_config = get_acs_config()
+acs_source_number = acs_config.source_number or ""
+acs_endpoint = acs_config.connection_endpoint or ""
+acs_callback_path = acs_config.callback_path or ""
+acs_media_streaming_websocket_host = acs_config.media_stream_host or ""
 
-print("LLM Endpoint WS:", llm_endpoint_ws)
-print("LLM Deployment:", llm_deployment)
-print("LLM Key:", llm_key)
-print("ACS Source Number:", acs_source_number)
-print("ACS Connection String:", acs_connection_string)
-print("ACS Callback Path:", acs_callback_path)
-print("ACS Media Streaming WebSocket Host:", acs_media_streaming_websocket_host)
-
-
-llm_credential = AzureKeyCredential(llm_key) if llm_key else None
+logger.info("LLM Endpoint WS: %s", llm_endpoint_ws)
+logger.info("LLM Deployment: %s", llm_deployment)
+logger.info("ACS Source Number: %s", acs_source_number)
+logger.info("ACS Endpoint: %s", acs_endpoint)
+logger.info("ACS Callback Path: %s", acs_callback_path)
+logger.info("ACS Media Streaming WebSocket Host: %s", acs_media_streaming_websocket_host)
 
 # Global instances (initialized on startup)
 caller: Optional[AcsCaller] = None
@@ -84,17 +82,18 @@ class PhoneCallRequest(BaseModel):
 # Initialization Function
 # ============================================================================
 async def initialize_acs_components():
-    """Initialize ACS components with configuration"""
+    """Initialize ACS components with configuration using Zero Trust authentication"""
     global caller, rtmt, voice_live_rtmt, event_handler, gpt_bridge, voice_live_bridge
     
     console.log("[ACS INIT] Initializing ACS phone call components...")
     
     # Initialize ACS caller
-    print("Initialize ACS caller", acs_source_number, acs_connection_string, acs_callback_path, acs_media_streaming_websocket_host)
+    logger.info("Initialize ACS caller - Source: %s, Endpoint: %s, Callback: %s, WebSocket: %s", 
+                acs_source_number, acs_endpoint, acs_callback_path, acs_media_streaming_websocket_host)
 
     
     # Load system prompt
-    print("Loading system prompt for ACS...")
+    logger.info("Loading system prompt for ACS...")
     system_prompt_path = Path(__file__).parent.parent / "prompts" / "system_prompt.txt"
     
     try:
@@ -111,10 +110,11 @@ async def initialize_acs_components():
         
         console.log("[ACS INIT] Voice Live Config loaded", voice_live_config)
         
+        # Use managed identity credential instead of API key
         voice_live_rtmt = RTMiddleTier(
             voice_live_config.endpoint,
             voice_live_config.default_model,
-            AzureKeyCredential(voice_live_config.api_key),
+            credential,  # Use DefaultAzureCredential for Zero Trust
             realtime_path="/voice-live/realtime",
             extra_query_params={
                 "api-version": voice_live_config.api_version,
@@ -126,20 +126,21 @@ async def initialize_acs_components():
         voice_live_rtmt.system_message = system_prompt
         register_tools_from_registry(voice_live_rtmt, TOOLS_REGISTRY)
         voice_live_bridge = VoiceLiveBridge(voice_live_rtmt)
-        console.log("[ACS INIT] ✅ Voice Live bridge configured")
+        console.log("[ACS INIT] ✅ Voice Live bridge configured with managed identity")
     except Exception as exc:
         console.log(f"[ACS INIT] ⚠️ Voice Live config unavailable: {exc}")
 
 
-    # Initialize RTMiddleTier (WebSocket-based middle tier for ACS)
-    if llm_endpoint_ws and llm_deployment and llm_credential:
+    # Initialize RTMiddleTier (WebSocket-based middle tier for ACS) with managed identity
+    if llm_endpoint_ws and llm_deployment:
         
         realtime_config = get_browser_realtime_config()
         
+        # Use managed identity credential instead of API key
         rtmt = RTMiddleTier(
             llm_endpoint_ws, 
             llm_deployment, 
-            llm_credential,
+            credential,  # Use DefaultAzureCredential for Zero Trust
             realtime_path="openai/v1/realtime",
             useVoiceLiveForAcs=voice_live_config.use_voicelive_for_acs if voice_live_config else False,
         )
@@ -150,11 +151,11 @@ async def initialize_acs_components():
         # Register all tools at once
         register_tools_from_registry(rtmt, TOOLS_REGISTRY)
         
-        console.log("[ACS INIT] ✅ RTMiddleTier (WebSocket) initialized")
+        console.log("[ACS INIT] ✅ RTMiddleTier (WebSocket) initialized with managed identity")
     else:
         console.log("[ACS INIT] ⚠️  RTMiddleTier not configured (missing Azure OpenAI settings)")
         
-    if acs_source_number and acs_connection_string and acs_callback_path and acs_media_streaming_websocket_host:
+    if acs_source_number and acs_endpoint and acs_callback_path and acs_media_streaming_websocket_host:
 
         if not voice_live_config.use_voicelive_for_acs:
             acs_media_streaming_websocket_path = f"{acs_media_streaming_websocket_host}/api/realtime-acs"
@@ -163,11 +164,12 @@ async def initialize_acs_components():
                 
         caller = AcsCaller(
             source_number=acs_source_number,
-            acs_connection_string=acs_connection_string,
+            acs_endpoint=acs_endpoint,
             acs_callback_path=acs_callback_path,
-            acs_media_streaming_websocket_path=acs_media_streaming_websocket_path
+            acs_media_streaming_websocket_path=acs_media_streaming_websocket_path,
+            credential=credential  # Use DefaultAzureCredential for Zero Trust
         )
-        console.log("[ACS INIT] ✅ ACS Caller initialized")
+        console.log("[ACS INIT] ✅ ACS Caller initialized with managed identity")
     else:
         console.log("[ACS INIT] ⚠️  ACS Caller not configured (missing environment variables)")
 
