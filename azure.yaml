@@ -11,3 +11,36 @@ services:
     docker:
       context: .
       remoteBuild: true
+    # Environment variables required for Zero Trust authentication
+    env:
+      # Identity - REQUIRED for managed identity
+      - AZURE_CLIENT_ID
+      
+      # Azure OpenAI Configuration
+      - AZURE_OPENAI_ENDPOINT_WS
+      - AZURE_GPT_REALTIME_URL
+      - WEBRTC_URL
+      - AZURE_OPENAI_MODEL_NAME
+      - AZURE_GPT_REALTIME_VOICE
+      
+      # Azure Communication Services (optional for telephony)
+      - AZURE_ACS_ENDPOINT
+      - ACS_PHONE_NUMBER
+      
+      # Callback Configuration
+      - CALLBACK_EVENTS_URI
+      - CALLBACK_URI_HOST
+      
+      # Voice Live Configuration (optional)
+      - AZURE_VOICELIVE_ENDPOINT
+      - AZURE_VOICELIVE_MODEL
+      - AZURE_VOICELIVE_VOICE
+      - AZURE_VOICELIVE_REGION
+      - AZURE_VOICELIVE_API_VERSION
+      - USE_VOICELIVE_FOR_ACS
+      
+      # Monitoring
+      - APPLICATIONINSIGHTS_CONNECTION_STRING
+      
+      # Application Configuration
+      - VITE_BACKEND_BASE_URL

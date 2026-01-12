@@ -119,13 +119,11 @@ jobs:
         run: |
           azd env set WEBRTC_URL "${{ secrets.WEBRTC_URL }}"
           azd env set AZURE_GPT_REALTIME_URL "${{ secrets.AZURE_GPT_REALTIME_URL }}"
-          azd env set AZURE_GPT_REALTIME_KEY "${{ secrets.AZURE_GPT_REALTIME_KEY }}"
           azd env set AZURE_OPENAI_ENDPOINT_WS "${{ secrets.AZURE_OPENAI_ENDPOINT_WS }}"
-          azd env set AZURE_OPENAI_API_KEY "${{ secrets.AZURE_OPENAI_API_KEY }}"
-          azd env set AZURE_ACS_CONN_KEY "${{ secrets.AZURE_ACS_CONN_KEY }}"
+          azd env set AZURE_ACS_ENDPOINT "${{ secrets.AZURE_ACS_ENDPOINT }}"
           azd env set ACS_PHONE_NUMBER "${{ secrets.ACS_PHONE_NUMBER }}"
           azd env set AZURE_VOICELIVE_ENDPOINT "${{ secrets.AZURE_VOICELIVE_ENDPOINT }}"
-          azd env set AZURE_VOICELIVE_API_KEY "${{ secrets.AZURE_VOICELIVE_API_KEY }}"
+          echo "Environment variables configured (endpoints only - Zero Trust authentication)"
 
       - name: Create Resource Group (if needed)
         if: ${{ env.TARGET_SCOPE == 'resourceGroup' }}

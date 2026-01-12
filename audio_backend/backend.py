@@ -81,11 +81,11 @@ voice_live_config = get_voice_live_config()
 FRONTEND_DIST_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 FRONTEND_BACKEND_BASE_URL = os.getenv("VITE_BACKEND_BASE_URL", "http://localhost:8080/api")
 
-print("REALTIME_SESSION_URL", browser_realtime_config.realtime_session_url)
-print("WEBRTC_URL", browser_realtime_config.webrtc_url)
-print("DEFAULT_DEPLOYMENT", browser_realtime_config.default_deployment)
-print("DEFAULT_VOICE", browser_realtime_config.default_voice)
-print("AZURE_API_KEY", browser_realtime_config.azure_api_key is not None)
+logger.info("REALTIME_SESSION_URL: %s", browser_realtime_config.realtime_session_url)
+logger.info("WEBRTC_URL: %s", browser_realtime_config.webrtc_url)
+logger.info("DEFAULT_DEPLOYMENT: %s", browser_realtime_config.default_deployment)
+logger.info("DEFAULT_VOICE: %s", browser_realtime_config.default_voice)
+logger.info("Using Zero Trust authentication with DefaultAzureCredential")
 
 
 
@@ -128,18 +128,14 @@ ToolExecutor = Callable[[Dict[str, Any]], Awaitable[Dict[str, Any]] | Dict[str, 
 
 
 async def _get_auth_headers(connection_mode: ConnectionMode) -> Dict[str, str]:
+    """Get authentication headers using Azure AD tokens via Managed Identity.
+    
+    This enforces Zero Trust authentication by always using managed identity.
+    API keys are not supported to comply with Azure security best practices.
+    """
     headers = {"Content-Type": "application/json"}
     
-    if connection_mode == "webrtc":
-        if browser_realtime_config.azure_api_key:
-            headers["api-key"] = browser_realtime_config.azure_api_key
-            return headers
-    else:
-        if voice_live_config.api_key:
-            headers["api-key"] = voice_live_config.api_key
-            return headers
-
-    # Prefer managed identity / Azure AD tokens when available
+    # Always use managed identity / Azure AD tokens for Zero Trust compliance
     token = await token_provider()
     headers["Authorization"] = f"Bearer {token}"
     return headers

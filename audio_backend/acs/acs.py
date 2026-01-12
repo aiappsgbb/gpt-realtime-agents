@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent ))
 from aiohttp import web
 from azure.core.messaging import CloudEvent
 from azure.eventgrid import EventGridEvent
+from azure.identity import DefaultAzureCredential
 from azure.communication.callautomation import (
     CallAutomationClient,
     PhoneNumberIdentifier,
@@ -18,15 +19,17 @@ from azure.communication.callautomation import (
 
 class AcsCaller:
     source_number: str
-    acs_connection_string: str
+    acs_endpoint: str
     acs_callback_path: str
     websocket_url: str
     media_streaming_configuration: MediaStreamingOptions
+    credential: DefaultAzureCredential
 
-    def __init__(self, source_number:str, acs_connection_string: str, acs_callback_path: str, acs_media_streaming_websocket_path: str):
+    def __init__(self, source_number:str, acs_endpoint: str, acs_callback_path: str, acs_media_streaming_websocket_path: str, credential: DefaultAzureCredential):
         self.source_number = source_number
-        self.acs_connection_string = acs_connection_string
+        self.acs_endpoint = acs_endpoint
         self.acs_callback_path = acs_callback_path
+        self.credential = credential
         self.media_streaming_configuration = MediaStreamingOptions(
             transport_url=acs_media_streaming_websocket_path,
             transport_type=MediaStreamingTransportType.WEBSOCKET,
@@ -38,7 +41,8 @@ class AcsCaller:
         )
     
     async def initiate_call(self, target_number: str):
-        self.call_automation_client = CallAutomationClient.from_connection_string(self.acs_connection_string)
+        # Use managed identity for Zero Trust authentication
+        self.call_automation_client = CallAutomationClient(self.acs_endpoint, self.credential)
         self.target_participant = PhoneNumberIdentifier(target_number)
         self.source_caller = PhoneNumberIdentifier(self.source_number)
         self.call_automation_client.create_call(
@@ -49,7 +53,8 @@ class AcsCaller:
         )
 
     async def answer_inbound_call(self, incoming_call_context: str):
-        self.call_automation_client = CallAutomationClient.from_connection_string(self.acs_connection_string)
+        # Use managed identity for Zero Trust authentication
+        self.call_automation_client = CallAutomationClient(self.acs_endpoint, self.credential)
         self.call_automation_client.answer_call(
             incoming_call_context,
             self.acs_callback_path,

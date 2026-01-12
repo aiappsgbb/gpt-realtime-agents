@@ -51,7 +51,6 @@ class BrowserRealtimeConfig:
     realtime_session_url: str
     webrtc_url: str
     default_deployment: str
-    azure_api_key: Optional[str]
     default_voice: GPTRealtimeVoiceSelection = "verse"
     
 
@@ -59,7 +58,6 @@ class BrowserRealtimeConfig:
 @dataclass(frozen=True)
 class VoiceLiveConfig:
     endpoint: str
-    api_key: str
     default_model: str
     region: str
     api_version: str
@@ -71,10 +69,11 @@ class VoiceLiveConfig:
 @dataclass(frozen=True)
 class AcsConfig:
     source_number: Optional[str]
-    connection_string: Optional[str]
     callback_path: Optional[str]
     media_stream_host: Optional[str]
     system_prompt_path: Optional[str]
+    # Connection endpoint only - no access keys for Zero Trust compliance
+    connection_endpoint: Optional[str]
 
 
 @lru_cache(maxsize=1)
@@ -87,14 +86,12 @@ def get_browser_realtime_config() -> BrowserRealtimeConfig:
         webrtc_url=_clean_env("WEBRTC_URL"),
         default_deployment=default_deployment,
         default_voice=_clean_env("AZURE_GPT_REALTIME_VOICE", default="verse"),
-        azure_api_key=_optional_env("AZURE_GPT_REALTIME_KEY"),
     )
 
 
 @lru_cache(maxsize=1)
 def get_voice_live_config() -> VoiceLiveConfig:
     endpoint = _clean_env("AZURE_VOICELIVE_ENDPOINT")
-    api_key = _clean_env("AZURE_VOICELIVE_API_KEY")
     # Read default_model from session_config.json
     default_model = SESSION_CONFIG.get("voicelive", {}).get("model", "gpt-realtime")
     default_voice = _clean_env("AZURE_VOICELIVE_VOICE", default="en-US-Ava:DragonHDLatestNeural")
@@ -103,7 +100,6 @@ def get_voice_live_config() -> VoiceLiveConfig:
     use_voicelive_for_acs = _clean_env("USE_VOICELIVE_FOR_ACS", default="false").lower() == "true"
     return VoiceLiveConfig(
         endpoint=endpoint.rstrip("/"),
-        api_key=api_key,
         default_model=default_model,
         default_voice=default_voice,
         region=region,
@@ -122,7 +118,7 @@ def get_acs_config() -> AcsConfig:
     )
     return AcsConfig(
         source_number=_optional_env("ACS_PHONE_NUMBER"),
-        connection_string=_optional_env("AZURE_ACS_CONN_KEY"),
+        connection_endpoint=_optional_env("AZURE_ACS_ENDPOINT"),
         callback_path=_optional_env("CALLBACK_EVENTS_URI"),
         media_stream_host=_optional_env("CALLBACK_URI_HOST"),
         system_prompt_path=prompt_override or default_prompt,
