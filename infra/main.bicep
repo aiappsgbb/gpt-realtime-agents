@@ -14,17 +14,15 @@ param resourceGroupName string = ''
 param applicationInsightsName string = ''
 param logAnalyticsName string = ''
 
+// Zero Trust Authentication - Endpoints only (no API keys)
 param webRTCUrl string = ''
 param gptRealtimeUrl string = ''
-param gptRealtimeKey string = ''
 param azureOpenAiEndpointWs string = ''
-param azureOpenAiApiKey string = ''
 param azureOpenAiModelName string = ''
-param azureAcsConnKey string = ''
 param acsPhoneNumber string = ''
+param azureAcsEndpoint string = ''
 
 param azureVoiceLiveEndpoint string = ''
-param azureVoiceLiveApiKey string = ''
 param azureVoiceLiveModel string = ''
 param azureVoiceLiveVoice string = ''
 param azureVoiceLiveRegion string = ''
@@ -100,12 +98,13 @@ module audioBackend 'app/audio-backend.bicep' = {
       }
       {
         name: 'SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS_SENSITIVE'
-        value: true
+        value: 'true'
       }
       {
         name: 'VITE_BACKEND_BASE_URL'
         value: '${audioBackendUri}/api'
       }
+      // Azure OpenAI Configuration (endpoints only - Zero Trust authentication)
       {
         name: 'WEBRTC_URL'
         value: webRTCUrl
@@ -115,24 +114,17 @@ module audioBackend 'app/audio-backend.bicep' = {
         value: gptRealtimeUrl
       }
       {
-        name: 'AZURE_GPT_REALTIME_KEY'
-        value: gptRealtimeKey
-      }
-      {
         name: 'AZURE_OPENAI_ENDPOINT_WS'
         value: azureOpenAiEndpointWs
-      }
-      {
-        name: 'AZURE_OPENAI_API_KEY'
-        value: azureOpenAiApiKey
       }
       {
         name: 'AZURE_OPENAI_MODEL_NAME'
         value: azureOpenAiModelName
       }
+      // Azure Communication Services Configuration (endpoint only - Zero Trust authentication)
       {
-        name: 'AZURE_ACS_CONN_KEY'
-        value: azureAcsConnKey
+        name: 'AZURE_ACS_ENDPOINT'
+        value: azureAcsEndpoint
       }
       {
         name: 'ACS_PHONE_NUMBER'
@@ -146,13 +138,10 @@ module audioBackend 'app/audio-backend.bicep' = {
         name: 'CALLBACK_URI_HOST'
         value: replace(audioBackendUri, 'https://', 'wss://')
       }
+      // Voice Live Configuration (endpoint only - Zero Trust authentication)
       {
         name: 'AZURE_VOICELIVE_ENDPOINT'
         value: azureVoiceLiveEndpoint
-      }
-      {
-        name: 'AZURE_VOICELIVE_API_KEY'
-        value: azureVoiceLiveApiKey
       }
       {
         name: 'AZURE_VOICELIVE_MODEL'
