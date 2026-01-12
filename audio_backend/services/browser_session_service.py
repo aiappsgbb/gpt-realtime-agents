@@ -24,7 +24,7 @@ ConnectionMode = Literal["webrtc", "voice-live"]
 @dataclass(frozen=True)
 class BrowserSession:
     session_id: str
-    ephemeral_key: str
+    ephemeral_key: str | None  # Optional for managed identity authentication
     realtime_url: str
     deployment: str
     voice: str
@@ -106,7 +106,7 @@ def _create_voice_live_session(*, deployment: str, voice: str) -> BrowserSession
     # Generate a unique session ID for tracking
     return BrowserSession(
         session_id=str(uuid.uuid4()),
-        ephemeral_key="",  # No API key - uses managed identity token
+        ephemeral_key=None,  # No API key - uses managed identity token
         realtime_url=url,
         deployment=model or config.default_model,
         voice=voice or config.default_voice,

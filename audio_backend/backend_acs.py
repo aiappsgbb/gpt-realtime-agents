@@ -46,7 +46,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["ACS Phone Calls"])
 
 # Initialize Azure credential for Zero Trust authentication
-credential = DefaultAzureCredential(exclude_interactive_browser_credential=False)
+# Note: exclude_interactive_browser_credential should be True in production
+# Set to False here to support local development scenarios
+credential = DefaultAzureCredential(
+    exclude_interactive_browser_credential=(os.environ.get("ENVIRONMENT", "development") == "production")
+)
 
 # Environment variables - using endpoints only (no API keys for Zero Trust compliance)
 llm_endpoint_ws = os.environ.get("AZURE_OPENAI_ENDPOINT_WS", "").replace('"', '').replace("'", "")

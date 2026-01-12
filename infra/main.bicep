@@ -98,7 +98,7 @@ module audioBackend 'app/audio-backend.bicep' = {
       }
       {
         name: 'SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS_SENSITIVE'
-        value: 'true'
+        value: true
       }
       {
         name: 'VITE_BACKEND_BASE_URL'
