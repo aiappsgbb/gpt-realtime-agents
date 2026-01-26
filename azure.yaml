@@ -2,7 +2,7 @@
 
 name: agent-call-center
 metadata:
-  template: agent-call-center
+  template: agentic-call-center-with-ai-voice-models@1.0.0
 services:
   audio-backend:
     project: .
